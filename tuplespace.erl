@@ -17,11 +17,7 @@ match(_,_) -> false.
 
 in(Tuplespace, InTuple) ->
 	Ref = make_ref(),
-	Tuplespace ! {self() , Ref, InTuple},
-	receive
-		{Tuplespace, Ref, ResultIn, Result} -> 
-			TupleResult
-	end;
+	Tuplespace ! {self() , Ref, InTuple};
 in(_,_) -> io:format("wrong arguments").
 
 out(Tuplespace, OutTuple) when is_tuple(PatternOut) -> 
