@@ -1,46 +1,32 @@
 -module(test).
--export([test/0, slave/2]).
+-export([testAll/0, test/0, test2/0, test3/0, test4/0, slave/2]).
 -import(
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-tuplespace  % <-- CHANGE THIS TO YOUR TUPLESPACE MODULE NAME 
+ts  % <-- CHANGE THIS TO YOUR TUPLESPACE MODULE NAME 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ,[in/2,out/2,new/0]
 ). 
 
-%% dave Oct 2000
-%% karol Jan 2010
+testAll() ->
 
-%% Module for performing a quick test on lab3 module.
-%% To test your lab, compile it: 
-%% c(linda).
-%% then compile the test: 
-%% c(test).
-%% then run:
-%% test:test().
+io:format("########## GIVEN TEST GO GO GO ########## ~n"),
+test:test(),
 
-%% Here is a run of the test on a correct tuplespace:
+io:format("########## GIVEN TEST END ###########~n~n~n~n~n"),
+io:format("########## MULTIPLE TUPLESPACES TEST GO GO GO ########## ~n"),
+test:test2(),
 
-%% (node@chalmers)1> c(test).
-%% {ok,test}
-%% (node@chalmers)2> test:test().
-%% TEST: new tuplespace TS created
-%% TEST: in(TS, {fish,any}) by process <0.46.0>
-%% TEST: in(TS, {fowl,any}) by process <0.47.0>
-%% TEST: out(TS, {fish,salmon})
-%% TEST: out(TS, {fowl,chicken})
-%% Process <0.47.0>
-%%      Correct. in operation: {fowl,any} returned tuple: {fowl,chicken}
-%% Process <0.46.0>
-%%      Correct. in operation: {fish,any} returned tuple: {fish,salmon}
-%% TEST: out(TS, {fish,chips})
-%% TEST: in(TS, {any,chips}) by process <0.48.0>
-%% Process <0.48.0>
-%%      Correct. in operation: {any,chips} returned tuple: {fish,chips}
-%% TEST: in(TS, {any,any}) by process <0.49.0>
-%% Correct. Tuplespace appears to be empty.
-%% finished
-%% (node@chalmers)3> 
+io:format("########## MULTIPLE TUPLESPACES END ########~n~n~n~n~n"),
+io:format("########## CHECK WHAT WE RETURN TEST GO GO GO ########## ~n"),
+test:test3(),
+
+io:format("########## CHECK WHAT WE RETURN END ########~n~n~n~n~n"),
+io:format("########## WEIRD INPUT TEST GO GO GO ########## ~n"),
+test:test4(),
+
+io:format("########## WEIRD INPUT TEST END ########~n"),
+io:format("########## ALL TESTS ARE NOW DONE LOLZ ########~n").
 
 test() ->
     Delay = 500,
@@ -90,6 +76,109 @@ test() ->
 	    collect_exits([Slave1, Slave2, Slave3, Slave4, TS]),
 	    finished
     end.
+
+%% test with more than one Tuplespace
+test2() ->
+Delay = 500,
+    process_flag(trap_exit, true),
+    TS = new(),
+    TS2 = new(),
+    link(TS),
+    link(TS2),
+    io:format("TEST: new tuplespace TS created~n", []),
+    io:format("TEST: new tuplespace TS created~n", []),
+
+    Slave1 = spawn_in_test(TS, {fish,any}),
+    sleep(Delay),
+    
+    out_test(TS2, {fish,salmon}),
+    sleep(Delay),
+
+    Slave2 = spawn_in_test(TS2, {fish,any}),
+    sleep(Delay),
+
+    replytest(Slave2, {fish,any}, {fish,salmon}),
+    sleep(Delay),
+
+
+    receive
+	{Slave1, Tup} ->
+	    io:format("Error. Empty tuplespace, but received: ~w~n",[Tup])
+    after
+        1000 ->   
+	    io:format("Correct. Tuplespace appears to be empty.~n"),
+	    exit(Slave1, this_is_it),
+	    exit(TS, this_is_it),
+	    exit(TS2, this_is_it),
+	    collect_exits([Slave1, Slave2, TS, TS2]),
+	    finished
+    end.
+
+%% check what we receive
+test3() ->
+Delay = 500,
+    process_flag(trap_exit, true),
+    TS = new(),
+    link(TS),
+    io:format("TEST: new tuplespace TS created~n", []),
+
+    Slave1 = spawn_in_test(TS, {fish,any}),
+    sleep(Delay),
+    
+    out_test(TS, {hello,salmon}),
+    sleep(Delay),
+
+	io:format("We get:  ~w~n", [Slave1]),
+    receive
+	{Slave1, Tup} ->
+	    io:format("Error. Empty tuplespace, but received: ~w~n",[Tup])
+    after
+        1000 ->   
+	    io:format("Correct. Tuplespace appears to be empty.~n"),
+	    exit(Slave1, this_is_it),
+	    exit(TS, this_is_it),
+	    collect_exits([Slave1, TS]),
+	    finished
+    end.
+
+%%% test weird tuple input %%%%%%%%%%%%%%%%%%%%%%%
+test4()->
+    Delay = 500,
+    process_flag(trap_exit, true),
+    TS = new(),
+    link(TS),
+    io:format("TEST: new tuplespace TS created~n", []),
+
+    Slave1 = spawn_in_test(TS, {1234,any}),
+    sleep(Delay),
+
+    Slave2 = spawn_in_test(TS, {"haha i rule okay?",any}),
+    sleep(Delay),
+
+    out_test(TS, {1234,5678}),
+    sleep(Delay),
+
+    out_test(TS, {"haha i rule okay?", " No you dont hahaha"}), 
+    sleep(Delay),
+
+    replytest(Slave2, {"haha i rule okay?",any}, {"haha i rule okay?", " No you dont hahaha"}),
+    sleep(Delay),
+
+    replytest(Slave1, {1234,any}, {1234,5678}),
+    sleep(Delay),
+
+    receive
+	{Slave1, Tup} ->
+	    io:format("Error. Empty tuplespace, but received: ~w~n",[Tup])
+    after
+        1000 ->   
+	    io:format("Correct. Tuplespace appears to be empty.~n"),
+	    exit(Slave1, this_is_it),
+	    exit(TS, this_is_it),
+	    collect_exits([Slave1, Slave2, TS]),
+	    finished
+    end.
+
 
 %%% Helper functions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
